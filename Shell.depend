@@ -1,0 +1,16 @@
+# depslib dependency file v1.0
+1511111430 source:/home/gabrel/Documents/Os/Hom1/Shell/main.c
+	<wait.h>
+	<sys/types.h>
+	<sys/fcntl.h>
+	<string.h>
+	"read_command.h"
+
+1511112113 /home/gabrel/Documents/Os/Hom1/Shell/read_command.h
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1511112086 source:/home/gabrel/Documents/Os/Hom1/Shell/read_command.c
+	"read_command.h"
+
