@@ -28,7 +28,62 @@ void inset_to_history(int *pos, char** history, char* to_insert)
 	(*pos)++;
 }
 
-char* get_line_command_case_up(int* pos_history, char ** history)
+char** parse_command(char* buff_command)
+{
+	char** args;
+	args=(char **)malloc(sizeof(char *)* size_command);
+	if(args == NULL){
+		printf("Fail to alloc mem for args_command \n");
+		exit(2);
+	}
+	
+	args[0]=(char *)malloc(sizeof(char) * size_command);
+	if(args[0] == NULL){
+		printf("Fail to alloc mem for args_command[0] \n");
+		exit(2);
+	}
+	
+	int cont_args=0;
+	int pos_args=0;
+	int cont=0;
+	
+	while((buff_command[cont] == ' ' || buff_command[cont] == '\t') && buff_command[cont] != 0)   /* skip blank spaces */
+		cont++;
+	
+	while(buff_command[cont] != 0)
+	{
+		if(buff_command[cont] != ' ' && buff_command[cont] != '\t'){
+			args[pos_args][cont_args]=buff_command[cont];
+			cont_args++;
+			cont++;
+		}
+		else
+		{
+			args[pos_args][cont_args]=0;
+			pos_args++;
+			cont_args=0;
+			
+			while((buff_command[cont] == ' ' || buff_command[cont] == '\t') && buff_command[cont] != 0)   /* skip blank spaces */
+				cont++;
+				
+			if(buff_command[cont] == 0)
+				args[pos_args]=NULL;
+				
+			args[pos_args]=(char *)malloc(sizeof(char) * size_command);
+			if(args[0] == NULL){
+				printf("Fail to alloc mem for args_command[pos_args] \n");
+				exit(2);
+			}
+		}
+	}
+	
+	if(args[pos_args] != NULL)
+		args[++pos_args]=NULL;
+			
+	return args;
+}
+
+char* get_line_command_case_up(int* pos_history, char ** history, char* curr_path)
 {
 	 system ("/bin/stty raw");		/* normally when used getc u need to press the key, and after that u need to press enter to read that key
 										*Using this command the system'll read every key without needing to press enter
@@ -57,7 +112,7 @@ char* get_line_command_case_up(int* pos_history, char ** history)
 	printf("%c[2K", 27);
 	strcpy(buff_command,history[*pos_history_up_down]);
 	pos_buff=strlen(buff_command);
-	printf("\r$> %s",buff_command);
+	printf("\r%s $> %s",curr_path,buff_command);
 
 start_2: while(1){
 
@@ -77,7 +132,7 @@ start_2: while(1){
 
 				strcpy(buff_command,history[*pos_history_up_down]);
 				pos_buff=strlen(buff_command);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 				pos_buff_left_right=-1;
 				goto start_2;
 				break;
@@ -90,7 +145,7 @@ start_2: while(1){
 
 				strcpy(buff_command,history[*pos_history_up_down]);
 				pos_buff=strlen(buff_command);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 				pos_buff_left_right=-1;
 				goto start_2;
 				break;
@@ -99,7 +154,7 @@ start_2: while(1){
 			{
 				buff_command[pos_buff]=0;
 				printf("%c[2K", 27);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 
 				if(pos_buff_left_right != -1 && pos_buff_left_right < pos_buff)
 				{
@@ -120,7 +175,7 @@ start_2: while(1){
 			{
 				buff_command[pos_buff]=0;
 				printf("%c[2K", 27);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 
 				if(pos_buff_left_right == -1)
 					pos_buff_left_right=pos_buff-1;
@@ -144,7 +199,7 @@ start_2: while(1){
 		/* set system back to normal because we don't want to keep it in that state */
 		system ("/bin/stty cooked");
 
-		printf("\r$> %s",buff_command);  /* \r returns the carriage the the begining of the current line */
+		printf("\r%s $> %s",curr_path,buff_command);  /* \r returns the carriage the the begining of the current line */
 		if(*pos_history > 0)
 			(*pos_history)--;
 
@@ -164,7 +219,7 @@ start_2: while(1){
 
 				buff_command[pos_buff]=0;
 				printf("%c[2K", 27);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 			}
 			else{
 				if(pos_buff_left_right > 0){
@@ -178,13 +233,13 @@ start_2: while(1){
 						pos_buff_left_right--;
 
 					printf("%c[2K", 27);
-					printf("\r$> %s",buff_command);
+					printf("\r%s $> %s",curr_path,buff_command);
 					cursorbackward(difference);
 				}
 				else
 				{
 					printf("%c[2K", 27);
-					printf("\r$> %s",buff_command);
+					printf("\r%s $> %s",curr_path,buff_command);
 					cursorbackward(difference);
 				}
 			}
@@ -233,7 +288,7 @@ start_2: while(1){
 			strcpy(buff_command+pos_buff_left_right+1, temp);
 			pos_buff_left_right++;
 			printf("%c[2K", 27);
-			printf("\r$> %s",buff_command);
+			printf("\r%s $> %s",curr_path,buff_command);
 
 			if(pos_buff_left_right-1 == pos_buff)
 			{
@@ -251,7 +306,7 @@ start_2: while(1){
 	}///end while--------------------------------------------------------------------------------------------------------------------------------------------------------
 }
 
-char* get_line_command(int* pos_history, char ** history)
+char* get_line_command(int* pos_history, char ** history, char* curr_path)
 {
 	 system ("/bin/stty raw");		/* normally when used getc u need to press the key, and after that u need to press enter to read that key
 										*Using this command the system'll read every key without needing to press enter
@@ -296,7 +351,7 @@ char* get_line_command(int* pos_history, char ** history)
 				/* nothing to do, just read it */
 				buff_command[pos_buff]=0;
 				printf("%c[2K", 27);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 				pos_buff_left_right=-1;
 				goto start;
 				break;
@@ -305,7 +360,7 @@ char* get_line_command(int* pos_history, char ** history)
 			{
 				buff_command[pos_buff]=0;
 				printf("%c[2K", 27);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 
 				if(pos_buff_left_right != -1 && pos_buff_left_right < pos_buff)
 				{
@@ -326,7 +381,7 @@ char* get_line_command(int* pos_history, char ** history)
 			{
 				buff_command[pos_buff]=0;
 				printf("%c[2K", 27);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 
 				if(pos_buff_left_right == -1)
 					pos_buff_left_right=pos_buff-1;
@@ -349,7 +404,7 @@ char* get_line_command(int* pos_history, char ** history)
 		/* set system back to normal because we don't want to keep it in that state */
 		system ("/bin/stty cooked");
 
-		printf("\r$> %s",buff_command);  /* \r returns the carriage the the begining of the current line */
+		printf("\r%s $> %s",curr_path,buff_command);  /* \r returns the carriage the the begining of the current line */
 		pos_buff_left_right=-1;
 		return buff_command;
 	}
@@ -367,7 +422,7 @@ char* get_line_command(int* pos_history, char ** history)
 
 			buff_command[pos_buff]=0;
 			printf("%c[2K", 27);
-			printf("\r$> %s",buff_command);
+			printf("\r%s $> %s",curr_path,buff_command);
 		}
 		else{
 
@@ -382,13 +437,13 @@ char* get_line_command(int* pos_history, char ** history)
 					pos_buff_left_right--;
 
 				printf("%c[2K", 27);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 				cursorbackward(difference);
 			}
 			else
 			{
 				printf("%c[2K", 27);
-				printf("\r$> %s",buff_command);
+				printf("\r%s $> %s",curr_path,buff_command);
 				cursorbackward(difference);
 			}
 		}
@@ -435,7 +490,7 @@ char* get_line_command(int* pos_history, char ** history)
 			strcpy(buff_command+pos_buff_left_right+1, temp);
 			pos_buff_left_right++;
 			printf("%c[2K", 27);
-			printf("\r$> %s",buff_command);
+			printf("\r%s $> %s",curr_path,buff_command);
 
 			if(pos_buff_left_right-1 == pos_buff)
 			{
@@ -459,9 +514,11 @@ int main_read_command()
 	int pos_history=0;  /* keep track of history size */
 	char* sign="$> ";
 	char* command=NULL;
-
-	if(test_path("/home/gabrel/")) ///###########################################################################################################################
-		printf("exista \n");
+	char* curr_path=NULL;
+	char* start_path="/home";
+	char** args=NULL; /* command to be executed */
+	
+	init_path(start_path,&curr_path);
 		
 	/* try to alloc for history commands */
 	history=(char **)malloc(sizeof(char *)*size_history);
@@ -471,19 +528,21 @@ int main_read_command()
 	}
 
 	while(1){
-		printf("%s",sign);
-		command=get_line_command(&pos_history,history);
+		printf("%s %s",curr_path,sign);
+		command=get_line_command(&pos_history,history,curr_path);
 
 		if(strcmp(command,"up") == 0){
-			command=get_line_command_case_up(&pos_history,history);
+			command=get_line_command_case_up(&pos_history,history,curr_path);
 		}
-
-		if(strcmp(command,"exit") == 0)
-			return 0;
 
 		if(strlen(command) > 0)
 			inset_to_history(&pos_history,history,command);
-
+			
 		printf("\n");
+		args=parse_command(command);
+		process_command(&curr_path,args,history,&pos_history);
+			
+		if(strcmp(command,"exit") == 0)
+			return 0;
 	}
 }
