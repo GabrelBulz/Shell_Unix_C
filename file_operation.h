@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <wait.h>
 
-#define size_path 300
+#define size_path 1<<10
 
 void clean_args(char** args)
 {
@@ -69,6 +69,7 @@ void init_path(char *path, char** curr_path)
 		}
 	
 		strcpy(*curr_path,path);
+		chdir(*curr_path);
 	}
 	else
 		printf("Invalid path \n");
@@ -108,28 +109,31 @@ void display_history(char** args, char** history, int* pos_history)
 void change_directory(char** curr_path,char** args)
 {
 	if(args[1] == NULL)   /* case cd with no arguments */
-	{
-		strcpy(*curr_path,"/home");
-		chdir(*curr_path);
-	}
+		chdir("/home");
+	
 	else
 	{
 		char* temp_args=args[1];
 		
+		int cont=0;
+		while(temp_args[cont] != 0)
+		{
+			if(temp_args[cont] == 92)  /* 92 is the code for \ */
+				strcpy(temp_args+cont,temp_args+cont+1);
+			cont++;
+		}
+			
+				
+		
 		if(strstr(temp_args,"/home") == temp_args)
 		{
 			if(test_path(temp_args))
-			{
 				chdir(temp_args);
-				strcpy(*curr_path,temp_args);
-			}
 			else
 				printf("shell_GABI: cd: %s: No such file or directory \n",temp_args);
 		}
 		else
 		{
-			temp_args[strlen(temp_args)]=0;
-			printf("%s \n",temp_args);
 			char* temp_curr_path=(char *)malloc(sizeof(char) * size_path);
 			if(temp_curr_path == NULL){
 				printf("Fail to alloc mem in change directory \n");
@@ -154,20 +158,27 @@ void change_directory(char** curr_path,char** args)
 				temp_curr_path=aux;
 			}
 			
-			//~ strcat(temp_curr_path,temp_args);
-			printf("%s \n",temp_curr_path);
+			strcat(temp_curr_path,temp_args);
 			
 			if(test_path(temp_curr_path))
-			{
-				strcpy(*curr_path,temp_curr_path);
-				chdir(*curr_path);
-			}
+				chdir(temp_curr_path);
 			else
 			{
-				printf("shell_GABI: cd: %s: No such file or directory \n",*curr_path);
+				printf("shell_GABI: cd: %s: No such file or directory \n",temp_curr_path);
 			}
 		}
 	}
+
+	char* temp_cwd=(char*)malloc(sizeof(char) * size_path);
+	if(temp_cwd == NULL){
+		printf("Fail to alloc mem in change dir cwd \n");
+		exit(2);
+	}
+	
+
+	char temp_pwd[size_path];
+    getcwd(temp_pwd,sizeof(temp_pwd));
+    strcpy(*curr_path,temp_pwd);
 }
 
 void process_command(char** curr_path, char** args, char** history, int* pos_history)
@@ -190,12 +201,14 @@ void process_command(char** curr_path, char** args, char** history, int* pos_his
 		exit(0);
 	}
 	else
+	{
 		waitpid(id,&status_pid,0);
+		clean_args(args);
+	}
 	
 	printf("pid status %d \n",status_pid);
 	}
-	
-	clean_args(args);
+
 	
 }
 
