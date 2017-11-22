@@ -28,6 +28,28 @@ void inset_to_history(int *pos, char** history, char* to_insert)
 	(*pos)++;
 }
 
+char* clean_command_sign(char* command) /* clean command of \ signs */
+{
+	char* temp=(char*)malloc(sizeof(char) * size_command);
+	if(temp == NULL){
+		printf("fail to alloc mem in clean_command_sign \n");
+		exit(2);
+	}
+	
+	strcpy(temp,command);
+	
+	int i=0;
+	while(temp[i] != 0)
+	{
+		if(temp[i] == 92)
+			strcpy(temp+i,temp+i+1);
+			
+		i++;
+	}
+	
+	return temp;
+}
+
 char** parse_command(char* buff_command)
 {
 	char** args;
@@ -535,6 +557,7 @@ int main_read_command()
 			command=get_line_command_case_up(&pos_history,history,curr_path);
 		}
 
+		command=clean_command_sign(command);
 		if(strlen(command) > 0)
 			inset_to_history(&pos_history,history,command);
 			

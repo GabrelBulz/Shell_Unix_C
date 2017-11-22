@@ -114,17 +114,7 @@ void change_directory(char** curr_path,char** args)
 	else
 	{
 		char* temp_args=args[1];
-		
-		int cont=0;
-		while(temp_args[cont] != 0)
-		{
-			if(temp_args[cont] == 92)  /* 92 is the code for \ */
-				strcpy(temp_args+cont,temp_args+cont+1);
-			cont++;
-		}
-			
-				
-		
+					
 		if(strstr(temp_args,"/home") == temp_args)
 		{
 			if(test_path(temp_args))
@@ -181,39 +171,52 @@ void change_directory(char** curr_path,char** args)
     strcpy(*curr_path,temp_pwd);
 }
 
+void tail(char** args)
+{
+	printf("tail \n");
+	return;
+}
+
 void process_command(char** curr_path, char** args, char** history, int* pos_history)
 {
 	if(strcmp(args[0],"exit") == 0)
 		exit(0);
 	if(strcmp(args[0],"history") == 0)
+	{
 		display_history(args,history,pos_history);
+		return;
+	}
+	if(strcmp(args[0],"tail") == 0)
+	{
+		tail(args);
+		return;
+	}
 	if(strcmp(args[0],"cd") == 0)
+	{
 		change_directory(curr_path,args);
+		return;
+	}
 	else{
 	
-	pid_t id=fork();
-	int status_pid=-1;
+		pid_t id=fork();
+		int status_pid=-1;
 	
-	if(id == 0){
-		chdir(*curr_path);
-		if(execvp(args[0],args) < 0)
-			exit(1);
-		exit(0);
-	}
-	else
-	{
-		waitpid(id,&status_pid,0);
-		clean_args(args);
-	}
+		if(id == 0){
+			chdir(*curr_path);
+			if(execvp(args[0],args) < 0)
+				exit(1);
+			exit(0);
+		}
+		else
+		{
+			waitpid(id,&status_pid,0);
+			clean_args(args);
+		}
 	
-	printf("pid status %d \n",status_pid);
+		printf("pid status %d \n",status_pid);
 	}
-
 	
 }
-
-
-
 
 
 #endif
