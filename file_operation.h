@@ -181,40 +181,117 @@ void process_command(char** curr_path, char** args, char** history, int* pos_his
 {
 	if(strcmp(args[0],"exit") == 0)
 		exit(0);
-	if(strcmp(args[0],"history") == 0)
+		
+	int pip[2];
+	if(pipe(pip) < 0)
 	{
-		display_history(args,history,pos_history);
-		return;
+		printf("Fail to create pipe in process_command \n");
+		exit(5);
 	}
-	if(strcmp(args[0],"tail") == 0)
-	{
-		tail(args);
-		return;
-	}
-	if(strcmp(args[0],"cd") == 0)
-	{
-		change_directory(curr_path,args);
-		return;
-	}
-	else{
 	
-		pid_t id=fork();
-		int status_pid=-1;
+	int status_pid=-1;
+	int id=fork();
 	
-		if(id == 0){
-			chdir(*curr_path);
-			if(execvp(args[0],args) < 0)
-				exit(1);
+	if(id < 0)
+	{
+		printf("Fork failed \n");
+		exit(4);
+	}
+	
+	if(id == 0){ /* child */
+		
+		if(strcmp(args[0],"history") == 0)
+		{
+			close(pip[1]);
+			close(pip[0]);
+			display_history(args,history,pos_history);
+			exit(0);
+		}
+		if(strcmp(args[0],"tail") == 0)
+		{
+			close(pip[1]);
+			close(pip[0]);
+			tail(args);
+			exit(0);
+		}
+		if(strcmp(args[0],"cd") == 0)
+		{
+			close(pip[0]);
+			change_directory(curr_path,args);
+			
+			/* get curr path after execution of cd */
+			char temp_pwd[size_path];
+			getcwd(temp_pwd,sizeof(temp_pwd));
+			
+			write(pip[1],temp_pwd,size_path*sizeof(char));
+			close(pip[1]);
+			
 			exit(0);
 		}
 		else
 		{
-			waitpid(id,&status_pid,0);
-			clean_args(args);
+			close(pip[1]);
+			close(pip[0]);
+			chdir(*curr_path);
+			if(execvp(args[0],args) < 0)
+				exit(-1);
+			exit(0);
 		}
-	
-		printf("pid status %d \n",status_pid);
 	}
+	else{ /* parent */
+		
+		close(pip[1]); /* pip1 to write in*/
+					   /* pip0 to read from*/
+					   
+		char temp_path[size_path];
+		if(read(pip[0],temp_path,size_path) > 0)
+		{
+			strcpy(*curr_path,temp_path);
+			chdir(*curr_path);
+		}
+		waitpid(id,&status_pid,0);
+			clean_args(args);
+		close(pip[0]);
+		printf("%d \n", status_pid);
+	}
+		
+		
+		
+		
+	//~ if(strcmp(args[0],"history") == 0)
+	//~ {
+		//~ display_history(args,history,pos_history);
+		//~ return;
+	//~ }
+	//~ if(strcmp(args[0],"tail") == 0)
+	//~ {
+		//~ tail(args);
+		//~ return;
+	//~ }
+	//~ if(strcmp(args[0],"cd") == 0)
+	//~ {
+		//~ change_directory(curr_path,args);
+		//~ return;
+	//~ }
+	//~ else{
+	
+		//~ pid_t id=fork();
+		//~ int status_pid=-1;
+	
+		//~ if(id == 0){
+			//~ chdir(*curr_path);
+			//~ if(execvp(args[0],args) < 0)
+				//~ exit(1);
+			//~ exit(0);
+		//~ }
+		//~ else
+		//~ {
+			//~ waitpid(id,&status_pid,0);
+			//~ clean_args(args);
+		//~ }
+	
+		//~ printf("pid status %d \n",status_pid);
+	//~ }
 	
 }
 

@@ -2,7 +2,9 @@
 /*
  * Error list
  * 2-Fail to alloc mem
- *
+ * 3-Fail to execut command
+ * 4-Fail to fork
+ * 5-Fail to create pipe
  * */
 
 #include <wait.h>

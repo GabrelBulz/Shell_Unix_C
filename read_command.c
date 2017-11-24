@@ -68,33 +68,63 @@ char** parse_command(char* buff_command)
 	int cont_args=0;
 	int pos_args=0;
 	int cont=0;
+	short int special_case=0; /* fot the case of parsing a string which contain " -text- " */
 	
 	while((buff_command[cont] == ' ' || buff_command[cont] == '\t') && buff_command[cont] != 0)   /* skip blank spaces */
 		cont++;
 	
 	while(buff_command[cont] != 0)
 	{
-		if(buff_command[cont] != ' ' && buff_command[cont] != '\t'){
+		if(buff_command[cont] == '"')
+		{
+			special_case=1;
+			cont++;
+			
+			while(buff_command[cont] != 0)
+			{
+				if(buff_command[cont] != '"')
+				{
+					args[pos_args][cont_args]=buff_command[cont];
+					cont++;
+					cont_args++;
+				}
+				else
+				{
+					cont++;
+					args[pos_args][cont_args]=0;
+					pos_args++;
+					cont_args=0;
+					special_case=0;
+				}
+			}
+			
+			while((buff_command[cont] == ' ' || buff_command[cont] == '\t') && buff_command[cont] != 0)   /* skip blank spaces */
+				cont++;
+		}
+		if(buff_command[cont] != ' ' && buff_command[cont] != '\t' && special_case != 1 && buff_command[cont] != 0){
 			args[pos_args][cont_args]=buff_command[cont];
 			cont_args++;
 			cont++;
 		}
 		else
 		{
-			args[pos_args][cont_args]=0;
-			pos_args++;
-			cont_args=0;
+			if(buff_command[cont] != 0)
+			{
+				args[pos_args][cont_args]=0;
+				pos_args++;
+				cont_args=0;
 			
-			while((buff_command[cont] == ' ' || buff_command[cont] == '\t') && buff_command[cont] != 0)   /* skip blank spaces */
-				cont++;
+				while((buff_command[cont] == ' ' || buff_command[cont] == '\t') && buff_command[cont] != 0)   /* skip blank spaces */
+					cont++;
 				
-			if(buff_command[cont] == 0)
-				args[pos_args]=NULL;
+				if(buff_command[cont] == 0)
+					args[pos_args]=NULL;
 				
-			args[pos_args]=(char *)malloc(sizeof(char) * size_command);
-			if(args[0] == NULL){
-				printf("Fail to alloc mem for args_command[pos_args] \n");
-				exit(2);
+				args[pos_args]=(char *)malloc(sizeof(char) * size_command);
+				if(args[0] == NULL){
+					printf("Fail to alloc mem for args_command[pos_args] \n");
+					exit(2);
+				}
 			}
 		}
 	}
