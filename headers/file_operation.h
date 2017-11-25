@@ -469,6 +469,9 @@ void tail(char** args)
 
 void process_command(char** curr_path, char** args, char** history, int* pos_history)
 {
+	char temp_args0[50];
+	strcpy(temp_args0,args[0]);
+	
 	if(strcmp(args[0],"exit") == 0)
 		exit(0);
 		
@@ -545,52 +548,14 @@ void process_command(char** curr_path, char** args, char** history, int* pos_his
 		
 		if(status_pid != 0)
 		{
-			int cont=0;
+			int cont=1;
+			printf("%s ",temp_args0);
 			while(args[cont] != NULL)
 				printf("%s ",args[cont++]);
 				
 			printf(":command not found \n");
 		}
 	}
-		
-		
-		
-		
-	//~ if(strcmp(args[0],"history") == 0)
-	//~ {
-		//~ display_history(args,history,pos_history);
-		//~ return;
-	//~ }
-	//~ if(strcmp(args[0],"tail") == 0)
-	//~ {
-		//~ tail(args);
-		//~ return;
-	//~ }
-	//~ if(strcmp(args[0],"cd") == 0)
-	//~ {
-		//~ change_directory(curr_path,args);
-		//~ return;
-	//~ }
-	//~ else{
-	
-		//~ pid_t id=fork();
-		//~ int status_pid=-1;
-	
-		//~ if(id == 0){
-			//~ chdir(*curr_path);
-			//~ if(execvp(args[0],args) < 0)
-				//~ exit(1);
-			//~ exit(0);
-		//~ }
-		//~ else
-		//~ {
-			//~ waitpid(id,&status_pid,0);
-			//~ clean_args(args);
-		//~ }
-	
-		//~ printf("pid status %d \n",status_pid);
-	//~ }
-	
 }
 
 
