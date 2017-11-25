@@ -8,8 +8,18 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <wait.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <errno.h>
 
 #define size_path 1<<10
+#define size_command 300
+#define size_read 1<<12
+
+typedef struct{ char* file_name;
+				int nr; // to display
+				int off_set;
+			} file_tail;
 
 void clean_args(char** args)
 {
@@ -58,6 +68,28 @@ char test_path(char* path)
 	
 	return test;
 }
+
+/* rt value
+ * 1-is existing file
+ * 2-is folder
+ * 3-does not exist
+ */
+char test_if_file(char *file)
+{
+	if(test_path(file))
+		return 2;
+	int id=open(file,O_RDONLY);
+	if(id < 0)
+    {
+		return 3;
+	}
+    else
+    {
+		close(id);
+		return 1;
+	}
+ }
+	
 
 void init_path(char *path, char** curr_path)
 {
@@ -171,11 +203,269 @@ void change_directory(char** curr_path,char** args)
     strcpy(*curr_path,temp_pwd);
 }
 
+void* find_offset_file_tail_row(void* arg_struct)
+{
+	file_tail **file_struct=(file_tail **)arg_struct;
+	
+	int test=test_if_file((*file_struct)->file_name);
+	if(test != 1)
+		(*file_struct)->off_set=test*(-1);
+	else
+	{
+		int file_id=open((*file_struct)->file_name,O_RDONLY);
+		if(file_id < 0)
+        {
+			(*file_struct)->off_set=-4;   /* couldn't open file */
+			pthread_exit(0);
+		}
+		
+		/* set file fointer to end of file */
+		off_t pointer=lseek(file_id,0L,SEEK_END);
+
+
+		int cont_line=0;
+		char buff;
+		
+		while(cont_line <= (*file_struct)->nr && pointer > lseek(file_id,0L,SEEK_SET))
+		{
+			pointer--;
+			lseek(file_id,pointer,SEEK_SET);
+			
+			read(file_id,&buff,1);
+			if(buff == '\n')
+			cont_line++;
+		}
+		
+		(*file_struct)->off_set=(int)pointer;
+		close(file_id);
+		pthread_exit(0);	
+	}
+	pthread_exit(0);
+}
+
+void* find_offset_file_tail_byte(void* arg_struct)
+{
+	file_tail **file_struct=(file_tail **)arg_struct;
+	
+	int test=test_if_file((*file_struct)->file_name);
+	if(test != 1)
+		(*file_struct)->off_set=test*(-1);
+	else
+	{
+		int file_id=open((*file_struct)->file_name,O_RDONLY);
+		if(file_id < 0)
+        {
+			(*file_struct)->off_set=-4;   /* couldn't open file */
+			pthread_exit(0);
+		}
+		
+		/* set file fointer to end of file */
+		off_t pointer=lseek(file_id,0L,SEEK_END);
+		if(pointer-(off_t)(*file_struct)->nr > lseek(file_id,0L,SEEK_SET))
+		{
+			(*file_struct)->off_set=(int)(pointer-(off_t)(*file_struct)->nr);
+			close(file_id);
+			pthread_exit(0);
+		}
+		else
+		{
+			(*file_struct)->off_set=(int)lseek(file_id,0L,SEEK_SET);
+			close(file_id);
+			pthread_exit(0);
+		}	
+	}
+	pthread_exit(0);
+}
+
+void display_from_file_with_offset(char* file, int offset)
+{
+	int id=open(file,O_RDONLY);
+	
+	if(id < 0)
+	{
+		printf("cannot open file %s \n",file);
+		return;
+	}
+	
+	lseek(id,offset,SEEK_SET);
+	
+	char *buff=(char*)malloc(sizeof(char) * size_read);
+	if(buff == NULL)
+	{
+		printf("Fail to alloc mem in display_from_file_with_offset \n");
+		return;
+	}
+	
+	while(read(id,buff,size_read) > 0)
+		printf("%s",buff);
+		
+	close(id);
+}
+
+void solve_tail_func(char need_header_title, char type_line_or_bits, file_tail **list_files, int size_list)
+{
+	///create a list of threads
+	pthread_t list_threads[size_list];
+	
+	int i;
+	
+	if(type_line_or_bits == 1)
+		for(i=0; i<size_list; i++)
+			pthread_create(&list_threads[i],NULL,find_offset_file_tail_byte,&list_files[i]);
+	else
+		for(i=0; i<size_list; i++)
+			pthread_create(&list_threads[i],NULL,find_offset_file_tail_row,&list_files[i]);
+		
+	///wait for threads
+	for(i=0; i<size_list; i++)
+		pthread_join(list_threads[i],NULL);
+	
+	if(size_list > 1 && need_header_title == -1)
+		need_header_title=1;
+		
+	for(i=0; i<size_list; i++)
+	{
+		if(need_header_title == 1)
+			printf("===> %s <=== \n",list_files[i]->file_name);
+			
+		switch(list_files[i]->off_set)
+		{
+			case -2:
+			{
+				printf("tail: error reading '%s': Is a directory \n",list_files[i]->file_name);
+				break;
+			}
+			case -3:
+			{
+				printf("tail: cannot open '%s' for reading: No such file or directory \n",list_files[i]->file_name);
+				break;
+			}
+			default:
+			{
+				display_from_file_with_offset(list_files[i]->file_name, list_files[i]->off_set);
+				break;
+			}
+		}
+	}
+}
+
 void tail(char** args)
 {
-	printf("To be implementad -TAIL- \n");
+	if(args[1] == NULL)
+		printf("shell_GABI: Must provide a file \n");
+	else
+	{
+		char need_header_title=-1;
+		char type_line_or_bits=0; /* if 0-then it'll take nr of lines 1-Nr of bits */
+		long int nr_to_display=10;
+		
+		file_tail **list_files=(file_tail**)malloc(sizeof(file_tail*) * size_command);
+		if(list_files == NULL)
+		{
+			printf("Fail to alloc mem for Files List in tail");
+			exit(2);
+		}
+		
+		int cont_list_file=0;
+		int cont=1;
+		while(args[cont] != NULL)
+		{
+			if(strcmp(args[cont],"-c") == 0)
+			{
+				cont++;
+				if(args[cont] == NULL){
+					printf("tail: option requires an argument -- 'c' \n");
+					break;
+				}
+				
+				long int nr=atoi_2(args[cont]);
+				
+				if(nr == -1){
+					printf("tail: invalid number of bytes: %s: Value too large for defined data type \n",args[cont]);
+					break;
+				}
+				if(nr == -2){
+					printf("tail: %s: invalid nr of bytes \n",args[cont]);
+					break;
+				}
+				
+				type_line_or_bits=1; /* set for bits */
+				nr_to_display=nr;
+				
+				cont++;
+				continue;
+			}
+			
+			if(strcmp(args[cont],"-n") == 0)
+			{
+				cont++;
+				if(args[cont] == NULL){
+					printf("tail: option requires an argument -- 'n' \n");
+					break;
+				}
+				
+				long int nr=atoi_2(args[cont]);
+				
+				if(nr == -1){
+					printf("tail: invalid number of lines: %s: Value too large for defined data type \n",args[cont]);
+					break;
+				}
+				if(nr == -2){
+					printf("tail: %s: invalid nr of lines \n",args[cont]);
+					break;
+				}
+				
+				type_line_or_bits=0; /* set for lines */
+				nr_to_display=nr;
+				
+				cont++;
+				continue;
+			}
+			if(strcmp(args[cont],"-q") == 0)
+			{
+				need_header_title=0; /* don't display headers */
+				cont++;
+				continue;
+			}
+			if(strcmp(args[cont],"-v") == 0)
+			{
+				need_header_title=1; /*display headers */
+				cont++;
+				continue;
+			}
+			
+			/* store files name */
+			list_files[cont_list_file]=(file_tail*)malloc(sizeof(file_tail));
+			if(list_files[cont_list_file] == NULL){
+				printf("Fail to alloc mem for list_files in while \n");
+				exit(2);
+			}
+			
+			list_files[cont_list_file]->file_name=(char*)malloc(sizeof(char) * strlen(args[cont]) + 1);
+			if(list_files[cont_list_file]->file_name == NULL){
+				printf("Fail to alloc mem for list_files in while \n");
+				exit(2);
+			}
+			strcpy(list_files[cont_list_file++]->file_name,args[cont++]);
+		}
+		
+		list_files[cont_list_file]=NULL;
+		
+		/* set nr for each struct */
+		int i;
+		for(i=0; i<cont_list_file; i++)
+			list_files[i]->nr=nr_to_display;
+		/* set all offset to 0*/
+		for(i=0; i<cont_list_file; i++)
+			list_files[i]->off_set=0;
+			
+		solve_tail_func(need_header_title,type_line_or_bits,list_files,cont_list_file);
+	}
 	return;
 }
+
+
+
 
 void process_command(char** curr_path, char** args, char** history, int* pos_history)
 {

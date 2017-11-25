@@ -5,6 +5,7 @@
  * 3-Fail to execut command
  * 4-Fail to fork
  * 5-Fail to create pipe
+ * 6-Invalid arguments
  * */
 
 #include <wait.h>
