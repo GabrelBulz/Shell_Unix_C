@@ -1,5 +1,5 @@
-#include "read_command.h"
-#include "file_operation.h"
+#include "../headers/read_command.h"
+#include "../headers/file_operation.h"
 
 
 void clear_history_if_full (int* pos, char** hist)

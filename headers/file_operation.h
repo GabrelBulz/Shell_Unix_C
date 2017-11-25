@@ -173,7 +173,7 @@ void change_directory(char** curr_path,char** args)
 
 void tail(char** args)
 {
-	printf("tail \n");
+	printf("To be implementad -TAIL- \n");
 	return;
 }
 
@@ -252,7 +252,15 @@ void process_command(char** curr_path, char** args, char** history, int* pos_his
 		waitpid(id,&status_pid,0);
 			clean_args(args);
 		close(pip[0]);
-		printf("%d \n", status_pid);
+		
+		if(status_pid != 0)
+		{
+			int cont=0;
+			while(args[cont] != NULL)
+				printf("%s ",args[cont++]);
+				
+			printf(":command not found \n");
+		}
 	}
 		
 		
