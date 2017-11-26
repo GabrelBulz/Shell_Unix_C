@@ -80,7 +80,7 @@ char** parse_command(char* buff_command)
 			special_case=1;
 			cont++;
 			
-			while(buff_command[cont] != 0)
+			while(buff_command[cont] != 0 && special_case)
 			{
 				if(buff_command[cont] != '"')
 				{
@@ -95,6 +95,12 @@ char** parse_command(char* buff_command)
 					pos_args++;
 					cont_args=0;
 					special_case=0;
+					
+					args[pos_args]=(char *)malloc(sizeof(char) * size_command);
+					if(args[0] == NULL){
+						printf("Fail to alloc mem for args_command[pos_args] \n");
+						exit(2);
+					}
 				}
 			}
 			
@@ -129,8 +135,21 @@ char** parse_command(char* buff_command)
 		}
 	}
 	
+	//~ if(cont > 0 && (buff_command[cont] != ' ' || buff_command[cont] != '\t'))
+	//~ {
+		//~ args[pos_args][cont_args]=0;
+		//~ pos_args++;
+	//~ }
+		
+	
 	if(args[pos_args] != NULL)
 		args[++pos_args]=NULL;
+		
+	//~ int i=0;
+	//~ while(args[i] != NULL)
+		//~ printf("%s \n",args[i++]);
+		
+	
 			
 	return args;
 }
@@ -569,6 +588,13 @@ int main_read_command()
 	char* curr_path=NULL;
 	char* start_path="/home";
 	char** args=NULL; /* command to be executed */
+	char** table_command=(char**)malloc(sizeof(char*)*100);
+	int input=0;
+	
+	if(table_command == NULL){
+		printf("Fail to alloc mem for table_command main_read_command \n");
+		exit(2);
+	}
 	
 	init_path(start_path,&curr_path);
 		
@@ -592,8 +618,47 @@ int main_read_command()
 			inset_to_history(&pos_history,history,command);
 			
 		printf("\n");
-		args=parse_command(command);
-		process_command(&curr_path,args,history,&pos_history);
+		 
+		int cont_commands=0;
+
+		table_command[cont_commands++]=strtok(command,"|");
+		while(table_command[cont_commands-1] != NULL)
+			table_command[cont_commands++]=strtok(NULL,"|");
+		
+		if(cont_commands == 2)
+		{
+			args=parse_command(table_command[0]);
+			input=process_command(&curr_path,args,history,&pos_history,input,0,1);
+			//clean_args(args);
+		}
+		else
+		{
+			int i;
+			for(i=0; i<cont_commands-1; i++)
+			{
+				args=parse_command(table_command[i]);
+				if(i == 0)
+				{
+					input=process_command(&curr_path,args,history,&pos_history,input,1,0);
+					//clean_args(args);
+					continue;
+				}
+			    if(i == cont_commands-2)
+				{
+					input=process_command(&curr_path,args,history,&pos_history,input,0,1);
+				}
+				else
+					input=process_command(&curr_path,args,history,&pos_history,input,0,0);
+					
+				//clean_args(args);
+			}
+			//clean_args(args);	
+		}
+		
+			
+		//args=parse_command(command);
+		//process_command(&curr_path,args,history,&pos_history);
+		input=0;
 			
 		if(strcmp(command,"exit") == 0)
 			return 0;
