@@ -87,6 +87,7 @@ char** parse_command(char* buff_command)
 					args[pos_args][cont_args]=buff_command[cont];
 					cont++;
 					cont_args++;
+					args[pos_args][cont_args]=0;
 				}
 				else
 				{
@@ -110,6 +111,7 @@ char** parse_command(char* buff_command)
 		if(buff_command[cont] != ' ' && buff_command[cont] != '\t' && special_case != 1 && buff_command[cont] != 0){
 			args[pos_args][cont_args]=buff_command[cont];
 			cont_args++;
+			args[pos_args][cont_args]=0;
 			cont++;
 		}
 		else
@@ -135,6 +137,8 @@ char** parse_command(char* buff_command)
 		}
 	}
 	
+	
+	
 	//~ if(cont > 0 && (buff_command[cont] != ' ' || buff_command[cont] != '\t'))
 	//~ {
 		//~ args[pos_args][cont_args]=0;
@@ -142,8 +146,14 @@ char** parse_command(char* buff_command)
 	//~ }
 		
 	
-	if(args[pos_args] != NULL)
+	if(args[pos_args] != NULL && strlen(args[pos_args])>0)
 		args[++pos_args]=NULL;
+	else
+		args[pos_args]=NULL;
+		
+		int i;
+	for(i=0; i<pos_args; i++)
+		printf("%s \n",args[i]);
 		
 	//~ int i=0;
 	//~ while(args[i] != NULL)
