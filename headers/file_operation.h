@@ -351,10 +351,61 @@ void solve_tail_func(char need_header_title, char type_line_or_bits, file_tail *
 	}
 }
 
-void tail(char** args)
+void tail(char** args, char* path_process_base)
 {
 	if(args[1] == NULL)
-		printf("shell_GABI: Must provide a file \n");
+	{
+		char *path_file_buffer="TempFileTailx01.txt";
+		int TempBuffFile = open(path_file_buffer, O_RDWR|O_CREAT|O_APPEND, 0600);
+		
+		if(TempBuffFile < 0)
+		{
+			printf("A error has occur durring the creating the buffer file in TAIL \n");
+			exit(7);
+		}
+		
+		char *temp_buff=(char*)malloc(sizeof(char) * (size_read) + 1);
+		if(temp_buff == NULL){
+			printf("Fail to alloc mem for buff in TAIL \n");
+			exit(2);
+		}
+		
+		int read_size;
+		while((read_size=read(0,temp_buff,size_read)))
+			write(TempBuffFile,temp_buff,read_size);
+			
+		close(TempBuffFile);
+		
+		file_tail **list_files=(file_tail**)malloc(sizeof(file_tail*) * size_command);
+		if(list_files == NULL)
+		{
+			printf("Fail to alloc mem for Files List in tail");
+			exit(2);
+		}
+		
+		int cont_list_file=0;
+		
+		list_files[cont_list_file]=(file_tail*)malloc(sizeof(file_tail));
+			if(list_files[cont_list_file] == NULL){
+				printf("Fail to alloc mem for list_files in while \n");
+				exit(2);
+			}
+			
+			list_files[cont_list_file]->file_name=(char*)malloc(sizeof(char) * strlen(path_file_buffer) + 1);
+			if(list_files[cont_list_file]->file_name == NULL){
+				printf("Fail to alloc mem for list_files in while \n");
+				exit(2);
+			}
+			strcpy(list_files[cont_list_file++]->file_name,path_file_buffer);
+			
+			list_files[cont_list_file]=NULL;
+			
+			list_files[0]->nr=10;
+			
+			solve_tail_func(0,0,list_files,cont_list_file);
+			
+			remove(path_file_buffer);
+	}
 	else
 	{
 		char need_header_title=-1;
@@ -448,6 +499,7 @@ void tail(char** args)
 				printf("Fail to alloc mem for list_files in while \n");
 				exit(2);
 			}
+		
 			strcpy(list_files[cont_list_file++]->file_name,args[cont++]);
 		}
 		
@@ -461,7 +513,55 @@ void tail(char** args)
 		for(i=0; i<cont_list_file; i++)
 			list_files[i]->off_set=0;
 			
-		solve_tail_func(need_header_title,type_line_or_bits,list_files,cont_list_file);
+			
+		if(cont_list_file > 0)	
+			solve_tail_func(need_header_title,type_line_or_bits,list_files,cont_list_file);
+		else
+		{
+			char *path_file_buffer="TempFileTailx01.txt";
+			int TempBuffFile = open(path_file_buffer, O_RDWR|O_CREAT|O_APPEND, 0600);
+		
+			if(TempBuffFile < 0)
+			{
+				printf("A error has occur durring the creating the buffer file in TAIL \n");
+				exit(7);
+			}
+		
+			char *temp_buff=(char*)malloc(sizeof(char) * (size_read) + 1);
+			if(temp_buff == NULL){
+				printf("Fail to alloc mem for buff in TAIL \n");
+				exit(2);
+			}
+		
+			int read_size;
+			while((read_size=read(0,temp_buff,size_read)))
+				write(TempBuffFile,temp_buff,read_size);
+			
+			close(TempBuffFile);
+
+		
+			list_files[cont_list_file]=(file_tail*)malloc(sizeof(file_tail));
+				if(list_files[cont_list_file] == NULL){
+					printf("Fail to alloc mem for list_files in while \n");
+					exit(2);
+				}
+			
+				list_files[cont_list_file]->file_name=(char*)malloc(sizeof(char) * strlen(path_file_buffer) + 1);
+				if(list_files[cont_list_file]->file_name == NULL){
+					printf("Fail to alloc mem for list_files in while \n");
+					exit(2);
+				}
+				strcpy(list_files[cont_list_file++]->file_name,path_file_buffer);
+			
+				list_files[cont_list_file]=NULL;
+			
+				list_files[0]->nr=nr_to_display;
+				list_files[0]->off_set=0;
+			
+				solve_tail_func(0,type_line_or_bits,list_files,cont_list_file);
+			
+				remove(path_file_buffer);	
+		}
 	}
 	return;
 }
@@ -1107,10 +1207,39 @@ void* uniq_thread_uniq_non_sensitive(void *file_arg) /*care trebe schimbat */
 	pthread_exit(0);
 }
 
-void uniq(char **args)
+void uniq(char **args, char* path_process_base)
 {
 	if(args[1] == NULL)
-		printf("shell_GABI: Must provide a file \n");
+	{
+		char *path_file_buffer="TempFileUniqx01.txt";
+		int TempBuffFile = open(path_file_buffer, O_RDWR|O_CREAT|O_APPEND, 0600);
+		
+		if(TempBuffFile < 0)
+		{
+			printf("A error has occur durring the creating the buffer file in TAIL \n");
+			exit(7);
+		}
+		
+		char *temp_buff=(char*)malloc(sizeof(char) * (size_read) + 1);
+		if(temp_buff == NULL){
+			printf("Fail to alloc mem for buff in UNIQ \n");
+			exit(2);
+		}
+		
+		int read_size;
+		while((read_size=read(0,temp_buff,size_read)))
+			write(TempBuffFile,temp_buff,read_size);
+			
+		close(TempBuffFile);
+		
+		pthread_t thread_1;
+		
+		pthread_create(&thread_1,NULL,uniq_thread_default_sensitive,path_file_buffer);
+		
+		pthread_join(thread_1,NULL);
+			
+		remove(path_file_buffer);
+	}
 	else
 	{
 		char duplicate=0; /* -d */
@@ -1160,36 +1289,92 @@ void uniq(char **args)
 		if(cont_file_list > 1) /* uniq command doesn't run if i pass more than one argument */
 			exit(0);
 			
-		char* test=(char*)(malloc(sizeof(char)*strlen(file_list[0]) +1));
-		strcpy(test,file_list[0]);
-		
-		
-		pthread_t thread_1;
-		
-		if(duplicate == 1 && unique == 1)
-			exit(0);
-		
-		if(case_sensitive == 0)
+		if(cont_file_list == 0)
 		{
-			if(duplicate)
-				pthread_create(&thread_1,NULL,uniq_thread_duplicate_non_sensitive,test);
-			else if(unique)
-				pthread_create(&thread_1,NULL,uniq_thread_uniq_non_sensitive,test);
+			if(duplicate == 1 && unique == 1)
+				exit(0);
+				
+			char *path_file_buffer="TempFileUniqx01.txt";
+			int TempBuffFile = open(path_file_buffer, O_RDWR|O_CREAT|O_APPEND, 0600);
+		
+			if(TempBuffFile < 0)
+			{
+				printf("A error has occur durring the creating the buffer file in TAIL \n");
+				exit(7);
+			}
+		
+			char *temp_buff=(char*)malloc(sizeof(char) * (size_read) + 1);
+			if(temp_buff == NULL){
+				printf("Fail to alloc mem for buff in UNIQ \n");
+				exit(2);
+			}
+		
+			int read_size;
+			while((read_size=read(0,temp_buff,size_read)))
+				write(TempBuffFile,temp_buff,read_size);
+			
+			close(TempBuffFile);
+				
+			pthread_t thread_1;
+			
+			if(case_sensitive == 0)
+			{
+				if(duplicate)
+					pthread_create(&thread_1,NULL,uniq_thread_duplicate_non_sensitive,path_file_buffer);
+				else if(unique)
+					pthread_create(&thread_1,NULL,uniq_thread_uniq_non_sensitive,path_file_buffer);
+				else
+					pthread_create(&thread_1,NULL,uniq_thread_default_non_sensitive,path_file_buffer);
+			}
 			else
-				pthread_create(&thread_1,NULL,uniq_thread_default_non_sensitive,test);
+			{
+				if(duplicate)
+					pthread_create(&thread_1,NULL,uniq_thread_duplicate_sensitive,path_file_buffer);
+				else if(unique)
+					pthread_create(&thread_1,NULL,uniq_thread_uniq_sensitive,path_file_buffer);
+				else
+					pthread_create(&thread_1,NULL,uniq_thread_default_sensitive,path_file_buffer);
+				
+			}
+
+			pthread_join(thread_1,NULL);
+			
+			remove(path_file_buffer);
+		
 		}
 		else
-		{
-			if(duplicate)
-				pthread_create(&thread_1,NULL,uniq_thread_duplicate_sensitive,test);
-			else if(unique)
-				pthread_create(&thread_1,NULL,uniq_thread_uniq_sensitive,test);
+		{	
+			char* test=(char*)(malloc(sizeof(char)*strlen(file_list[0]) +1));
+			strcpy(test,file_list[0]);
+		
+		
+			pthread_t thread_1;
+		
+			if(duplicate == 1 && unique == 1)
+				exit(0);
+		
+			if(case_sensitive == 0)
+			{
+				if(duplicate)
+					pthread_create(&thread_1,NULL,uniq_thread_duplicate_non_sensitive,test);
+				else if(unique)
+					pthread_create(&thread_1,NULL,uniq_thread_uniq_non_sensitive,test);
+				else
+					pthread_create(&thread_1,NULL,uniq_thread_default_non_sensitive,test);
+			}
 			else
-				pthread_create(&thread_1,NULL,uniq_thread_default_sensitive,test);
-			
-		}
+			{
+				if(duplicate)
+					pthread_create(&thread_1,NULL,uniq_thread_duplicate_sensitive,test);
+				else if(unique)
+					pthread_create(&thread_1,NULL,uniq_thread_uniq_sensitive,test);
+				else
+					pthread_create(&thread_1,NULL,uniq_thread_default_sensitive,test);
+				
+			}
 
-		pthread_join(thread_1,NULL);
+			pthread_join(thread_1,NULL);
+		}
 		
 	}
 }
@@ -1197,7 +1382,7 @@ void uniq(char **args)
 
 
 
-static int process_command(char** curr_path, char** args, char** history, int* pos_history, int input, int first, int last)
+static int process_command(char** curr_path, char** args, char** history, int* pos_history, int input, int first, int last, char* path_process_base)
 {
 	char temp_args0[50];
 	strcpy(temp_args0,args[0]);
@@ -1249,12 +1434,12 @@ static int process_command(char** curr_path, char** args, char** history, int* p
 		}
 		if(strcmp(args[0],"tail") == 0)
 		{
-			tail(args);
+			tail(args,path_process_base);
 			exit(0);
 		}
 		if(strcmp(args[0],"uniq") == 0)
 		{
-			uniq(args);
+			uniq(args,path_process_base);
 			exit(0);
 		}
 		else

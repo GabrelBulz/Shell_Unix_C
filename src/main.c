@@ -6,6 +6,7 @@
  * 4-Fail to fork
  * 5-Fail to create pipe
  * 6-Invalid arguments
+ * 7-Fail to create file
  * */
 
 #include <wait.h>

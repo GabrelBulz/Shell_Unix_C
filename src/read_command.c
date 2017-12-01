@@ -578,6 +578,8 @@ int main_read_command()
 	char* sign="$> ";
 	char* command=NULL;
 	char* curr_path=NULL;
+	char path_process_base[size_path];
+	getcwd(path_process_base,sizeof(path_process_base));
 	char* start_path="/home";
 	char** args=NULL; /* command to be executed */
 	char** table_command=(char**)malloc(sizeof(char*)*100);
@@ -620,7 +622,7 @@ int main_read_command()
 		if(cont_commands == 2)
 		{
 			args=parse_command(table_command[0]);
-			input=process_command(&curr_path,args,history,&pos_history,input,0,1);
+			input=process_command(&curr_path,args,history,&pos_history,input,0,1,path_process_base);
 			//clean_args(args);
 		}
 		else
@@ -631,16 +633,16 @@ int main_read_command()
 				args=parse_command(table_command[i]);
 				if(i == 0)
 				{
-					input=process_command(&curr_path,args,history,&pos_history,input,1,0);
+					input=process_command(&curr_path,args,history,&pos_history,input,1,0,path_process_base);
 					//clean_args(args);
 					continue;
 				}
 			    if(i == cont_commands-2)
 				{
-					input=process_command(&curr_path,args,history,&pos_history,input,0,1);
+					input=process_command(&curr_path,args,history,&pos_history,input,0,1,path_process_base);
 				}
 				else
-					input=process_command(&curr_path,args,history,&pos_history,input,0,0);
+					input=process_command(&curr_path,args,history,&pos_history,input,0,0,path_process_base);
 					
 				//clean_args(args);
 			}
