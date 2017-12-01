@@ -26,7 +26,9 @@ void clear_history_if_full (int* pos, char** hist);
 
 void inset_to_history(int *pos, char** history, char* to_insert);
 
-char** parse_command(char* buff_command);
+char* skip_spaces(char *str);
+
+char** parse_command(char* buff_command, char **, char **);
 
 char* get_line_command_case_up(int* pos_history, char ** history, char* curr_path);
 

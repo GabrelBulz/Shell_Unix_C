@@ -238,7 +238,7 @@ void* find_offset_file_tail_row(void* arg_struct)
 			cont_line++;
 		}
 		
-		(*file_struct)->off_set=(int)pointer+1;
+		(*file_struct)->off_set=(int)pointer;
 		close(file_id);
 		pthread_exit(0);	
 	}
@@ -1379,105 +1379,130 @@ void uniq(char **args, char* path_process_base)
 	}
 }
 
-
-
-
-static int process_command(char** curr_path, char** args, char** history, int* pos_history, int input, int first, int last, char* path_process_base)
+static int process_command(char** curr_path, char** args, char** history, int* pos_history, int input, int first, int last, char* path_process_base, char* input_file_redirect , char *output_file_redirect)
 {
-	char temp_args0[50];
-	strcpy(temp_args0,args[0]);
-	
-	if(strcmp(args[0],"exit") == 0)
-		exit(0);
-	if(strcmp(temp_args0,"cd") == 0)
-	{
-		change_directory(curr_path,args);
-		return -1;
-	}
-	
-	int pip[2];
-	
-	if(pipe(pip) < 0){
-		printf("Fail to create pipe \n");
-		exit(5);
-	}
-	int status_pid=-1;
-	
-	int id=fork();
-	
-	if(id < 0)
-	{
-		printf("Fork failed \n");
-		exit(4);
-	}
-	if(id == 0){ /* child */
+	if(args != NULL)
+		{
+		char temp_args0[50];
+		strcpy(temp_args0,args[0]);
 		
-		if (first==1 && last==0 && input==0) 
-		{
-			dup2( pip[1], 1 );
-		}
-		else if (first==0 && last==0 && input!=0) 
-		{
-			dup2(input, 0);
-			dup2(pip[1], 1);
-		} 
-		else 
-		{
-			dup2(input, 0);
-		}
-		
-		
-		if(strcmp(args[0],"history") == 0)
-		{
-			display_history(args,history,pos_history);
+		if(strcmp(args[0],"exit") == 0)
 			exit(0);
-		}
-		if(strcmp(args[0],"tail") == 0)
+		if(strcmp(temp_args0,"cd") == 0)
 		{
-			tail(args,path_process_base);
-			exit(0);
+			change_directory(curr_path,args);
+			return -1;
 		}
-		if(strcmp(args[0],"uniq") == 0)
-		{
-			uniq(args,path_process_base);
-			exit(0);
-		}
-		else
-		{
-			chdir(*curr_path);
-			if(execvp(args[0],args) < 0)
-				exit(-1);
-			exit(0);
-		}
-	}
-	else{ /* parent */
 		
-		waitpid(id,&status_pid,0);
-		
-		if(status_pid != 0)
-		{
-			int cont=1;
-			printf("%s ",temp_args0);
-			while(args[cont] != NULL)
-				printf("%s ",args[cont++]);
+		int pip[2];
 				
-			printf(":command not found \n");
+		
+		if(pipe(pip) < 0){
+			printf("Fail to create pipe \n");
+			exit(5);
 		}
+		int status_pid=-1;
 		
-
-		if(last == 1)
-		  close(pip[0]);
-		if(input != 0) 
-	      close(input);
-		close(pip[1]);
+		int id=fork();
 		
-		//clean_args(args);
-		
-		return pip[0];
-	}
+		if(id < 0)
+		{
+			printf("Fork failed \n");
+			exit(4);
+		}
+		if(id == 0){ /* child */
+			/*pipes*/
+			if (first==1 && last==0 && input==0) 
+			{
+				dup2( pip[1], 1 );
+			}
+			else if (first==0 && last==0 && input!=0) 
+			{
+				dup2(input, 0);
+				dup2(pip[1], 1);
+			} 
+			else 
+			{
+				dup2(input, 0);
+			}
+			
+			
+			/* redirects */
+			if(input_file_redirect != NULL)
+                {                    
+                   int in_id=open(input_file_redirect,O_RDONLY, 0);
+					if (in_id < 0)
+					{
+					printf("Failed to open %s input in REDIRECT\n", input_file_redirect);
+					exit(7);
+					}
+					dup2(in_id, 0);
+					close(in_id);
+                }
+			if(output_file_redirect != NULL)
+			  {
+				int out_id= creat(output_file_redirect, 0644);
+                   if (out_id < 0)
+                   {
+                     printf("Failed to open %s output in REDIRECT\n", output_file_redirect);
+                     exit(7);
+                   }
+                   dup2(out_id, 1);
+                   close(out_id);
+			  }
+			
+			
+			if(strcmp(args[0],"history") == 0)
+			{
+				display_history(args,history,pos_history);
+				exit(0);
+			}
+			if(strcmp(args[0],"tail") == 0)
+			{
+				tail(args,path_process_base);
+				exit(0);
+			}
+			if(strcmp(args[0],"uniq") == 0)
+			{
+				uniq(args,path_process_base);
+				exit(0);
+			}
+			else
+			{
+				chdir(*curr_path);
+				if(execvp(args[0],args) < 0)
+					exit(-1);
+				exit(0);
+			}
+		}
+		else{ /* parent */
+			
+			waitpid(id,&status_pid,0);
+			
+			if(status_pid != 0)
+			{
+				int cont=1;
+				printf("%s ",temp_args0);
+				while(args[cont] != NULL)
+					printf("%s ",args[cont++]);
+					
+				printf(":command not found \n");
+			}
+			
 	
+			if(last == 1)
+			  close(pip[0]);
+			if(input != 0) 
+		      close(input);
+			close(pip[1]);
+			
+			//clean_args(args);
+			
+			return pip[0];
+		}
+	}	
 	///################################################################################
-	
+	return -1;
 }
 
 

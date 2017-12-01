@@ -50,8 +50,21 @@ char* clean_command_sign(char* command) /* clean command of \ signs */
 	return temp;
 }
 
-char** parse_command(char* buff_command)
+char* skip_spaces(char *str)
 {
+	if(str[0] == ' ')
+	{
+		while(str[0] == ' ')
+			strcpy(str,str+1);
+	}
+	
+	return str;
+}
+			
+
+char** parse_command(char* command, char** input_file_redirect, char ** output_file_redirect)
+{
+	
 	char** args;
 	args=(char **)malloc(sizeof(char *)* size_command);
 	if(args == NULL){
@@ -64,6 +77,114 @@ char** parse_command(char* buff_command)
 		printf("Fail to alloc mem for args_command[0] \n");
 		exit(2);
 	}
+	
+	char* buff_command_copy=strdup(command);
+	char* buff_command=buff_command_copy;
+	
+	
+	if(strchr(buff_command_copy, '<') && strchr(buff_command_copy, '>'))
+	{
+		buff_command=strtok(buff_command_copy,"<");
+		
+		char* tokenize[100];
+		int cont=0;
+		
+		tokenize[cont]=strtok(NULL,">");
+		
+		while(tokenize[cont] != NULL)
+		{
+			cont++;
+			tokenize[cont]=strtok(NULL,">");
+		}
+		
+		if(cont > 1)
+		{
+			*input_file_redirect=(char*)(malloc(sizeof(char) * strlen(tokenize[0])));
+			if(*input_file_redirect == NULL){
+				printf("Fail to alloc mem for input_file_redirect in PARSE_COMMAND \n");
+				exit(2);
+			}
+			strcpy(*input_file_redirect,skip_spaces(tokenize[0]));
+			
+			*output_file_redirect=(char*)(malloc(sizeof(char) * strlen(tokenize[1])));
+			if(*output_file_redirect == NULL){
+				printf("Fail to alloc mem for input_file_redirect in PARSE_COMMAND \n");
+				exit(2);
+			}
+			strcpy(*output_file_redirect,skip_spaces(tokenize[1]));
+		}
+		else
+		{
+			printf("shell_GABI: syntax error near unexpected token `newline' \n");
+			return NULL;
+		}
+		
+		if(strlen(*output_file_redirect) < 1 && strlen(*input_file_redirect) < 1)
+		{
+			printf("shell_GABI: syntax error near unexpected token `newline' \n");
+			return NULL;
+		}
+		
+	}
+	else if(strchr(buff_command_copy,'<'))
+	{
+		buff_command=strtok(buff_command_copy,"<");
+		char* tokenize[100];
+		int cont=0;
+		
+		tokenize[cont]=strtok(NULL,"<");
+		
+		while(tokenize[cont] != NULL)
+		{
+			cont++;
+			tokenize[cont]=strtok(NULL,"<");
+		}
+		
+		if(cont > 0 && strlen(skip_spaces(tokenize[cont-1]))>0)
+		{
+			*input_file_redirect=(char*)(malloc(sizeof(char) * strlen(tokenize[cont-1])));
+			if(*input_file_redirect == NULL){
+				printf("Fail to alloc mem for input_file_redirect in PARSE_COMMAND \n");
+				exit(2);
+			}
+			strcpy(*input_file_redirect,skip_spaces(tokenize[cont-1]));
+		}
+		else
+		{
+			printf("shell_GABI: syntax error near unexpected token `newline' \n");
+			return NULL;
+		}
+	}
+	else if(strchr(buff_command_copy,'>'))
+	{
+		buff_command=strtok(buff_command_copy,">");
+		char* tokenize[100];
+		int cont=0;
+		
+		tokenize[cont]=strtok(NULL,">");
+		
+		while(tokenize[cont] != NULL)
+		{
+			cont++;
+			tokenize[cont]=strtok(NULL,">");
+		}
+		
+		if(cont > 0 && strlen(skip_spaces(tokenize[cont-1]))>0)
+		{
+			*output_file_redirect=(char*)(malloc(sizeof(char) * strlen(tokenize[cont-1])));
+			if(*output_file_redirect == NULL){
+				printf("Fail to alloc mem for input_file_redirect in PARSE_COMMAND \n");
+				exit(2);
+			}
+			strcpy(*output_file_redirect,skip_spaces(tokenize[cont-1]));
+		}
+		else
+		{
+			printf("shell_GABI: syntax error near unexpected token `newline' \n");
+			return NULL;
+		}
+	}
+	
 	
 	int cont_args=0;
 	int pos_args=0;
@@ -599,7 +720,7 @@ int main_read_command()
 		return 1;
 	}
 
-	while(1){
+start_main_read:	while(1){
 		printf("%s %s",curr_path,sign);
 		command=get_line_command(&pos_history,history,curr_path);
 
@@ -614,6 +735,9 @@ int main_read_command()
 		printf("\n");
 		 
 		int cont_commands=0;
+		
+		char* input_file_redirect=NULL;
+		char* output_file_redirect=NULL;
 
 		table_command[cont_commands++]=strtok(command,"|");
 		while(table_command[cont_commands-1] != NULL)
@@ -621,8 +745,12 @@ int main_read_command()
 		
 		if(cont_commands == 2)
 		{
-			args=parse_command(table_command[0]);
-			input=process_command(&curr_path,args,history,&pos_history,input,0,1,path_process_base);
+			args=parse_command(table_command[0], &input_file_redirect , &output_file_redirect);
+			
+			input=process_command(&curr_path,args,history,&pos_history,input,0,1,path_process_base,input_file_redirect,output_file_redirect);
+			
+			if(input == -1)
+				goto start_main_read;
 			//clean_args(args);
 		}
 		else
@@ -630,19 +758,33 @@ int main_read_command()
 			int i;
 			for(i=0; i<cont_commands-1; i++)
 			{
-				args=parse_command(table_command[i]);
+				input_file_redirect=NULL;
+				output_file_redirect=NULL;
+				
+				args=parse_command(table_command[i],&input_file_redirect, &output_file_redirect);
 				if(i == 0)
 				{
-					input=process_command(&curr_path,args,history,&pos_history,input,1,0,path_process_base);
+					input=process_command(&curr_path,args,history,&pos_history,input,1,0,path_process_base,input_file_redirect,output_file_redirect);
+					
+					if(input == -1)
+						goto start_main_read;
 					//clean_args(args);
 					continue;
 				}
 			    if(i == cont_commands-2)
 				{
-					input=process_command(&curr_path,args,history,&pos_history,input,0,1,path_process_base);
+					input=process_command(&curr_path,args,history,&pos_history,input,0,1,path_process_base,input_file_redirect,output_file_redirect);
+					
+					if(input == -1)
+						goto start_main_read;
 				}
 				else
-					input=process_command(&curr_path,args,history,&pos_history,input,0,0,path_process_base);
+				{
+					input=process_command(&curr_path,args,history,&pos_history,input,0,0,path_process_base,input_file_redirect,output_file_redirect);
+					
+					if(input == -1)
+						goto start_main_read;
+				}
 					
 				//clean_args(args);
 			}
