@@ -11,10 +11,12 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <errno.h>
+#include <ctype.h>
 
 #define size_path 1<<10
 #define size_command 300
 #define size_read 1<<12
+#define size_history 5000
 
 typedef struct{ char* file_name;
 				int nr; // to display
@@ -464,6 +466,734 @@ void tail(char** args)
 	return;
 }
 
+int stricmp(const char* s1,const char* s2)
+{
+	if(strlen(s1) != strlen(s2))
+		return -1;
+		
+	int i=0;
+	for(i=0; i<strlen(s1); i++)
+	{
+		int res=tolower(s1[i])-tolower(s2[i]);
+		
+		if(res != 0)
+			return -1;
+	}
+	
+	return 0;
+}
+
+void* uniq_thread_duplicate_sensitive(void *file_arg)
+{
+	char* file=(char *)file_arg;
+	
+	int test=test_if_file(file);
+	if(test == 3){
+		printf("uniq: %s: No such file or directory \n",file);
+		pthread_exit(0);
+	}
+	if(test == 2){
+		printf("uniq: %s: Is a directory directory",file);
+		pthread_exit(0);
+	}
+	
+	int id=open(file,O_RDONLY);
+	if(id < 0){
+		printf("Fail to open file in UNIQ_THREAD_DUPLICATE \n");
+		pthread_exit(0);
+	}
+
+	int cont_temp_row=0;
+	
+	char* temp_row=(char*)malloc(sizeof(char) * size_read);
+	if(temp_row == NULL){
+		printf("Fail to alloc mem for temp_row in UNIQ_THREAD_DUP \n");
+		pthread_exit(0);
+	}
+	
+	char buff;
+	char* prev_row=(char *)calloc(sizeof(char),2);
+	int cont_temp_row_resized=1;
+	int already_printed_once=0;
+	
+	while(read(id,&buff,1))
+	{
+		if(cont_temp_row == (size_read) -1)
+		{
+			temp_row[cont_temp_row]=0;
+			char* aux=temp_row;
+			
+			cont_temp_row_resized++;
+			
+			temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+			if(temp_row == NULL){
+				printf("Fail to alloc mem for temp_row in UNIQ_THREAD_DUP \n");
+				pthread_exit(0);
+			}
+			
+			strcpy(temp_row,aux);
+			free(aux);
+			
+			cont_temp_row++;
+		}
+		
+		if(buff == '\n' || buff == EOF)
+		{
+			temp_row[cont_temp_row]=0;
+			
+			/* case \n repeats */
+			if(strlen(temp_row) < 1 && strlen(prev_row) < 1 && already_printed_once == 0)
+			{
+				printf("\n");
+				already_printed_once=1;
+			}
+			else
+			{
+				if(prev_row != NULL)
+				{
+					if(strcmp(temp_row,prev_row) == 0 && already_printed_once == 0)
+					{			
+						printf("%s \n",temp_row);
+						already_printed_once=1;
+					}
+					
+					if(strcmp(prev_row,temp_row) != 0)
+						already_printed_once=0;
+				}
+				
+				free(prev_row);
+				prev_row=temp_row;
+			
+				cont_temp_row=0;
+				cont_temp_row_resized=1;
+
+				temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+				if(temp_row == NULL){
+					printf("Fail to alloc mem for temp_row in UNIQ_THREAD_DUP \n");
+					pthread_exit(0);
+				}
+			}
+			
+		}
+		else
+			temp_row[cont_temp_row++]=buff;
+		
+	}
+	
+	free(prev_row);
+	free(temp_row);
+	
+	close(id);
+	
+	pthread_exit(0);
+}
+
+void* uniq_thread_duplicate_non_sensitive(void *file_arg)
+{
+	char* file=(char *)file_arg;
+	
+	int test=test_if_file(file);
+	if(test == 3){
+		printf("uniq: %s: No such file or directory \n",file);
+		pthread_exit(0);
+	}
+	if(test == 2){
+		printf("uniq: %s: Is a directory directory",file);
+		pthread_exit(0);
+	}
+	
+	int id=open(file,O_RDONLY);
+	if(id < 0){
+		printf("Fail to open file in UNIQ_THREAD_DUP_NON_SENS \n");
+		pthread_exit(0);
+	}
+
+	int cont_temp_row=0;
+	
+	char* temp_row=(char*)malloc(sizeof(char) * size_read);
+	if(temp_row == NULL){
+		printf("Fail to alloc mem for temp_row in UNIQ_THREAD_DUP_NON_SENS \n");
+		pthread_exit(0);
+	}
+	
+	char buff;
+	char* prev_row=(char *)calloc(sizeof(char),2);
+	int cont_temp_row_resized=1;
+	int already_printed_once=0;
+	
+	while(read(id,&buff,1))
+	{
+		if(cont_temp_row == (size_read) -1)
+		{
+			temp_row[cont_temp_row]=0;
+			char* aux=temp_row;
+			
+			cont_temp_row_resized++;
+			
+			temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+			if(temp_row == NULL){
+				printf("Fail to alloc mem for temp_row in UNIQ_THREAD_DUP_NON_SENS \n");
+				pthread_exit(0);
+			}
+			
+			strcpy(temp_row,aux);
+			free(aux);
+			
+			cont_temp_row++;
+		}
+		
+		if(buff == '\n' || buff == EOF)
+		{
+			temp_row[cont_temp_row]=0;
+			
+			/* case \n repeats */
+			if(strlen(temp_row) < 1 && strlen(prev_row) < 1 && already_printed_once == 0)
+			{
+				printf("\n");
+				already_printed_once=1;
+			}
+			else
+			{
+				if(prev_row != NULL)
+				{
+					if(stricmp(temp_row,prev_row) == 0 && already_printed_once == 0)
+					{			
+						printf("%s \n",temp_row);
+						already_printed_once=1;
+					}
+					
+					if(stricmp(prev_row,temp_row) != 0)
+						already_printed_once=0;
+				}
+				
+				free(prev_row);
+				prev_row=temp_row;
+			
+				cont_temp_row=0;
+				cont_temp_row_resized=1;
+
+				temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+				if(temp_row == NULL){
+					printf("Fail to alloc mem for temp_row in UNIQ_THREAD_DUP_NON_SENS \n");
+					pthread_exit(0);
+				}
+			}
+			
+		}
+		else
+			temp_row[cont_temp_row++]=buff;
+		
+	}
+	
+	free(prev_row);
+	free(temp_row);
+	
+	close(id);
+	
+	pthread_exit(0);
+}
+
+void* uniq_thread_default_sensitive(void *file_arg)
+{
+	char* file=(char *)file_arg;
+	
+	
+	
+	int test=test_if_file(file);
+	if(test == 3){
+		printf("uniq: %s: No such file or directory \n",file);
+		pthread_exit(0);
+	}
+	if(test == 2){
+		printf("uniq: %s: Is a directory directory",file);
+		pthread_exit(0);
+	}
+	
+	int id=open(file,O_RDONLY);
+	if(id < 0){
+		printf("Fail to open file in UNIQ_THREAD_UNIQ \n");
+		pthread_exit(0);
+	}
+
+	int cont_temp_row=0;
+	
+	char* temp_row=(char*)malloc(sizeof(char) * size_read);
+	if(temp_row == NULL){
+		printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ \n");
+		pthread_exit(0);
+	}
+	
+	char buff;
+	char* prev_row=(char *)calloc(sizeof(char),2);
+	int cont_temp_row_resized=1;
+	
+	while(read(id,&buff,1))
+	{
+		if(cont_temp_row == (size_read) -1)
+		{
+			temp_row[cont_temp_row]=0;
+			char* aux=temp_row;
+			
+			cont_temp_row_resized++;
+			
+			temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+			if(temp_row == NULL){
+				printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ \n");
+				pthread_exit(0);
+			}
+			
+			strcpy(temp_row,aux);
+			free(aux);
+			
+			cont_temp_row++;
+		}
+		
+		if(buff == '\n' || buff == EOF)
+		{
+			temp_row[cont_temp_row]=0;
+		
+			/* if cur row if different from the above one */
+			{
+				if(prev_row != NULL)
+				{
+					if(strcmp(temp_row,prev_row) != 0)
+						printf("%s \n",temp_row);
+				}
+				else
+					printf("%s\n",temp_row);
+				
+				free(prev_row);
+				prev_row=temp_row;
+			
+				cont_temp_row=0;
+				cont_temp_row_resized=1;
+
+				temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+				if(temp_row == NULL){
+					printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ \n");
+					pthread_exit(0);
+				}
+			}
+			
+		}
+		else
+			temp_row[cont_temp_row++]=buff;
+		
+	}
+	
+	free(prev_row);
+	free(temp_row);
+	
+	close(id);
+	
+	pthread_exit(0);
+}
+
+void* uniq_thread_default_non_sensitive(void *file_arg)
+{
+	char* file=(char *)file_arg;
+	
+	
+	
+	int test=test_if_file(file);
+	if(test == 3){
+		printf("uniq: %s: No such file or directory \n",file);
+		pthread_exit(0);
+	}
+	if(test == 2){
+		printf("uniq: %s: Is a directory directory",file);
+		pthread_exit(0);
+	}
+	
+	int id=open(file,O_RDONLY);
+	if(id < 0){
+		printf("Fail to open file in UNIQ_THREAD_UNIQ_NON_SENS \n");
+		pthread_exit(0);
+	}
+
+	int cont_temp_row=0;
+	
+	char* temp_row=(char*)malloc(sizeof(char) * size_read);
+	if(temp_row == NULL){
+		printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ_NON_SENS \n");
+		pthread_exit(0);
+	}
+	
+	char buff;
+	char* prev_row=(char *)calloc(sizeof(char),2);
+	int cont_temp_row_resized=1;
+	
+	while(read(id,&buff,1))
+	{
+		if(cont_temp_row == (size_read) -1)
+		{
+			temp_row[cont_temp_row]=0;
+			char* aux=temp_row;
+			
+			cont_temp_row_resized++;
+			
+			temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+			if(temp_row == NULL){
+				printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ_NON_SENS \n");
+				pthread_exit(0);
+			}
+			
+			strcpy(temp_row,aux);
+			free(aux);
+			
+			cont_temp_row++;
+		}
+		
+		if(buff == '\n' || buff == EOF)
+		{
+			temp_row[cont_temp_row]=0;
+		
+			/* if cur row if different from the above one */
+			{
+				if(prev_row != NULL)
+				{
+					if(stricmp(temp_row,prev_row) != 0)
+						printf("%s \n",temp_row);
+				}
+				else
+					printf("%s\n",temp_row);
+				
+				free(prev_row);
+				prev_row=temp_row;
+			
+				cont_temp_row=0;
+				cont_temp_row_resized=1;
+
+				temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+				if(temp_row == NULL){
+					printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ_NON_SENS \n");
+					pthread_exit(0);
+				}
+			}
+			
+		}
+		else
+			temp_row[cont_temp_row++]=buff;
+		
+	}
+	
+	free(prev_row);
+	free(temp_row);
+	
+	close(id);
+	
+	pthread_exit(0);
+}
+
+void* uniq_thread_uniq_sensitive(void *file_arg) /*care trebe schimbat */
+{
+	char* file=(char *)file_arg;
+	
+	
+	
+	int test=test_if_file(file);
+	if(test == 3){
+		printf("uniq: %s: No such file or directory \n",file);
+		pthread_exit(0);
+	}
+	if(test == 2){
+		printf("uniq: %s: Is a directory directory",file);
+		pthread_exit(0);
+	}
+	
+	int id=open(file,O_RDONLY);
+	if(id < 0){
+		printf("Fail to open file in UNIQ_THREAD_DEFAULT \n");
+		pthread_exit(0);
+	}
+
+	int cont_temp_row=0;
+	
+	char* temp_row=(char*)malloc(sizeof(char) * size_read);
+	if(temp_row == NULL){
+		printf("Fail to alloc mem for temp_row in UNIQ_THREAD_DEFAULT \n");
+		pthread_exit(0);
+	}
+	
+	char buff;
+	char* prev_row=(char *)calloc(sizeof(char),2);
+	int cont_temp_row_resized=1;
+	int repeated=-1;
+	
+	while(read(id,&buff,1))
+	{
+		if(cont_temp_row == (size_read) -1)
+		{
+			temp_row[cont_temp_row]=0;
+			char* aux=temp_row;
+			
+			cont_temp_row_resized++;
+			
+			temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+			if(temp_row == NULL){
+				printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ_NON_SENS \n");
+				pthread_exit(0);
+			}
+			
+			strcpy(temp_row,aux);
+			free(aux);
+			
+			cont_temp_row++;
+		}
+		
+		if(buff == '\n' || buff == EOF)
+		{
+			temp_row[cont_temp_row]=0;
+		
+			{
+				if(prev_row == NULL)
+				{
+					prev_row=temp_row;
+					repeated=0;
+				}
+				else
+				{
+					if(strcmp(temp_row,prev_row) == 0)
+						repeated=1;
+					else
+					{
+						if(repeated == 0)
+							printf("%s \n",prev_row);
+						
+							
+						repeated=0;
+					}
+					
+					free(prev_row);
+					prev_row=temp_row;
+			
+					cont_temp_row=0;
+					cont_temp_row_resized=1;
+						
+				}
+				
+				temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+				if(temp_row == NULL){
+					printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ_NON_SENS \n");
+					pthread_exit(0);
+				}
+			}
+			
+		}
+		else
+			temp_row[cont_temp_row++]=buff;
+		
+	}
+	
+	if(repeated == 0)
+		printf("%s \n",prev_row);
+		
+	free(prev_row);
+	free(temp_row);
+	
+	close(id);
+	
+	pthread_exit(0);
+}
+
+void* uniq_thread_uniq_non_sensitive(void *file_arg) /*care trebe schimbat */
+{
+	char* file=(char *)file_arg;
+	
+	
+	
+	int test=test_if_file(file);
+	if(test == 3){
+		printf("uniq: %s: No such file or directory \n",file);
+		pthread_exit(0);
+	}
+	if(test == 2){
+		printf("uniq: %s: Is a directory directory",file);
+		pthread_exit(0);
+	}
+	
+	int id=open(file,O_RDONLY);
+	if(id < 0){
+		printf("Fail to open file in UNIQ_THREAD_DEFAULT \n");
+		pthread_exit(0);
+	}
+
+	int cont_temp_row=0;
+	
+	char* temp_row=(char*)malloc(sizeof(char) * size_read);
+	if(temp_row == NULL){
+		printf("Fail to alloc mem for temp_row in UNIQ_THREAD_DEFAULT \n");
+		pthread_exit(0);
+	}
+	
+	char buff;
+	char* prev_row=(char *)calloc(sizeof(char),2);
+	int cont_temp_row_resized=1;
+	int repeated=-1;
+	
+	while(read(id,&buff,1))
+	{
+		if(cont_temp_row == (size_read) -1)
+		{
+			temp_row[cont_temp_row]=0;
+			char* aux=temp_row;
+			
+			cont_temp_row_resized++;
+			
+			temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+			if(temp_row == NULL){
+				printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ_NON_SENS \n");
+				pthread_exit(0);
+			}
+			
+			strcpy(temp_row,aux);
+			free(aux);
+			
+			cont_temp_row++;
+		}
+		
+		if(buff == '\n' || buff == EOF)
+		{
+			temp_row[cont_temp_row]=0;
+		
+			{
+				if(prev_row == NULL)
+				{
+					prev_row=temp_row;
+					repeated=0;
+				}
+				else
+				{
+					if(stricmp(temp_row,prev_row) == 0)
+						repeated=1;
+					else
+					{
+						if(repeated == 0)
+							printf("%s \n",prev_row);
+						
+							
+						repeated=0;
+					}
+					
+					free(prev_row);
+					prev_row=temp_row;
+			
+					cont_temp_row=0;
+					cont_temp_row_resized=1;
+						
+				}
+				
+				temp_row=(char*)malloc(sizeof(char) * size_read * cont_temp_row_resized);
+				if(temp_row == NULL){
+					printf("Fail to alloc mem for temp_row in UNIQ_THREAD_UNIQ_NON_SENS \n");
+					pthread_exit(0);
+				}
+			}
+			
+		}
+		else
+			temp_row[cont_temp_row++]=buff;
+		
+	}
+	
+	if(repeated == 0)
+		printf("%s \n",prev_row);
+		
+	free(prev_row);
+	free(temp_row);
+	
+	close(id);
+	
+	pthread_exit(0);
+}
+
+void uniq(char **args)
+{
+	if(args[1] == NULL)
+		printf("shell_GABI: Must provide a file \n");
+	else
+	{
+		char duplicate=0; /* -d */
+		char case_sensitive=1; /* -i */
+		char unique=0; /* -u */
+		
+		char **file_list=(char**)malloc(sizeof(char*)*size_command);
+		if(file_list == NULL){
+			printf("fail to alloc mem for file_list in UNIQ \n");
+			exit(2);
+		}
+		
+		int cont_file_list=0;
+		
+		int cont=1;
+		while(args[cont] != NULL)
+		{
+			if(strcmp(args[cont],"-u") == 0)
+			{
+				unique=1;
+				cont++;
+				continue;
+			}
+			if(strcmp(args[cont],"-i") == 0)
+			{
+				case_sensitive=0;
+				cont++;
+				continue;
+			}
+			if(strcmp(args[cont],"-d") == 0)
+			{
+				duplicate=1;
+				cont++;
+				continue;
+			}
+			
+			file_list[cont_file_list]=(char*)malloc(sizeof(char) * strlen(args[cont]) +1);
+			if(file_list[cont_file_list] == NULL){
+				printf("Fail to alloc mem in UNIQ while \n");
+				exit(2);
+			}
+			
+			strcpy(file_list[cont_file_list++],args[cont]);
+			cont++;
+		}
+
+		if(cont_file_list > 1) /* uniq command doesn't run if i pass more than one argument */
+			exit(0);
+			
+		char* test=(char*)(malloc(sizeof(char)*strlen(file_list[0]) +1));
+		strcpy(test,file_list[0]);
+		
+		
+		pthread_t thread_1;
+		
+		if(duplicate == 1 && unique == 1)
+			exit(0);
+		
+		if(case_sensitive == 0)
+		{
+			if(duplicate)
+				pthread_create(&thread_1,NULL,uniq_thread_duplicate_non_sensitive,test);
+			else if(unique)
+				pthread_create(&thread_1,NULL,uniq_thread_uniq_non_sensitive,test);
+			else
+				pthread_create(&thread_1,NULL,uniq_thread_default_non_sensitive,test);
+		}
+		else
+		{
+			if(duplicate)
+				pthread_create(&thread_1,NULL,uniq_thread_duplicate_sensitive,test);
+			else if(unique)
+				pthread_create(&thread_1,NULL,uniq_thread_uniq_sensitive,test);
+			else
+				pthread_create(&thread_1,NULL,uniq_thread_default_sensitive,test);
+			
+		}
+
+		pthread_join(thread_1,NULL);
+		
+	}
+}
+
 
 
 
@@ -522,6 +1252,11 @@ static int process_command(char** curr_path, char** args, char** history, int* p
 			tail(args);
 			exit(0);
 		}
+		if(strcmp(args[0],"uniq") == 0)
+		{
+			uniq(args);
+			exit(0);
+		}
 		else
 		{
 			chdir(*curr_path);
@@ -557,90 +1292,7 @@ static int process_command(char** curr_path, char** args, char** history, int* p
 	}
 	
 	///################################################################################
-		
-	//~ int pip[2];
-	//~ if(pipe(pip) < 0)
-	//~ {
-		//~ printf("Fail to create pipe in process_command \n");
-		//~ exit(5);
-	//~ }
 	
-	//~ int status_pid=-1;
-	//~ int id=fork();
-	
-	//~ if(id < 0)
-	//~ {
-		//~ printf("Fork failed \n");
-		//~ exit(4);
-	//~ }
-	
-	//~ if(id == 0){ /* child */
-		
-		//~ if(strcmp(args[0],"history") == 0)
-		//~ {
-			//~ close(pip[1]);
-			//~ close(pip[0]);
-			//~ display_history(args,history,pos_history);
-			//~ exit(0);
-		//~ }
-		//~ if(strcmp(args[0],"tail") == 0)
-		//~ {
-			//~ close(pip[1]);
-			//~ close(pip[0]);
-			//~ tail(args);
-			//~ exit(0);
-		//~ }
-		//~ if(strcmp(args[0],"cd") == 0)
-		//~ {
-			//~ close(pip[0]);
-			//~ change_directory(curr_path,args);
-			
-			//~ /* get curr path after execution of cd */
-			//~ char temp_pwd[size_path];
-			//~ getcwd(temp_pwd,sizeof(temp_pwd));
-			
-			//~ write(pip[1],temp_pwd,size_path*sizeof(char));
-			//~ close(pip[1]);
-			
-			//~ exit(0);
-		//~ }
-		//~ else
-		//~ {
-			//~ close(pip[1]);
-			//~ close(pip[0]);
-			//~ chdir(*curr_path);
-			//~ if(execvp(args[0],args) < 0)
-				//~ exit(-1);
-			//~ exit(0);
-		//~ }
-	//~ }
-	//~ else{ /* parent */
-		
-		//~ close(pip[1]); /* pip1 to write in*/
-					   //~ /* pip0 to read from*/
-					   
-		//~ char temp_path[size_path];
-		//~ if(read(pip[0],temp_path,size_path) > 0)
-		//~ {
-			//~ strcpy(*curr_path,temp_path);
-			//~ chdir(*curr_path);
-		//~ }
-		//~ waitpid(id,&status_pid,0);
-			//~ clean_args(args);
-		//~ close(pip[0]);
-		
-		//~ if(status_pid != 0)
-		//~ {
-			//~ int cont=1;
-			//~ printf("%s ",temp_args0);
-			//~ while(args[cont] != NULL)
-				//~ printf("%s ",args[cont++]);
-				
-			//~ printf(":command not found \n");
-		//~ }
-	//~ }
-	
-	//return -1;
 }
 
 

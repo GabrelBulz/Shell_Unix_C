@@ -137,29 +137,11 @@ char** parse_command(char* buff_command)
 		}
 	}
 	
-	
-	
-	//~ if(cont > 0 && (buff_command[cont] != ' ' || buff_command[cont] != '\t'))
-	//~ {
-		//~ args[pos_args][cont_args]=0;
-		//~ pos_args++;
-	//~ }
 		
-	
 	if(args[pos_args] != NULL && strlen(args[pos_args])>0)
 		args[++pos_args]=NULL;
 	else
 		args[pos_args]=NULL;
-		
-		int i;
-	for(i=0; i<pos_args; i++)
-		printf("%s \n",args[i]);
-		
-	//~ int i=0;
-	//~ while(args[i] != NULL)
-		//~ printf("%s \n",args[i++]);
-		
-	
 			
 	return args;
 }
